@@ -1,18 +1,14 @@
 """
 MIT License
-
 Copyright (c) 2017 Cyrille Rossant
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -21,6 +17,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -33,7 +30,7 @@ def normalize(x):
     return x
 
 def intersect_plane(O, D, P, N):
-    # Return the distance from O to the intersection of the ray (O, D) with the
+    # Return the distance from O to the intersection of the ray (O, D) with the 
     # plane (P, N), or +inf if there is no intersection.
     # O and P are 3D points, D and N (normal) are normalized vectors.
     denom = np.dot(D, N)
@@ -45,7 +42,7 @@ def intersect_plane(O, D, P, N):
     return d
 
 def intersect_sphere(O, D, S, R):
-    # Return the distance from O to the intersection of the ray (O, D) with the
+    # Return the distance from O to the intersection of the ray (O, D) with the 
     # sphere (S, R), or +inf if there is no intersection.
     # O and S are 3D points, D (direction) is a normalized vector, R is a scalar.
     a = np.dot(D, D)
@@ -76,7 +73,7 @@ def get_normal(obj, M):
     elif obj['type'] == 'plane':
         N = obj['normal']
     return N
-
+    
 def get_color(obj, M):
     color = obj['color']
     if not hasattr(color, '__len__'):
@@ -99,33 +96,39 @@ def trace_ray(rayO, rayD):
     M = rayO + rayD * t
     # Find properties of the object.
     N = get_normal(obj, M)
-    color = get_color(obj, M)
-    toL = normalize(L - M)
-    toO = normalize(O - M)
-    # Shadow: find if the point is shadowed or not.
-    l = [intersect(M + N * .0001, toL, obj_sh)
-            for k, obj_sh in enumerate(scene) if k != obj_idx]
-    if l and min(l) < np.inf:
-        return
+    
+    
     # Start computing the color.
     col_ray = ambient
-    # Lambert shading (diffuse).
-    col_ray += obj.get('diffuse_c', diffuse_c) * max(np.dot(N, toL), 0) * color
-    # Blinn-Phong shading (specular).
-    col_ray += obj.get('specular_c', specular_c) * max(np.dot(N, normalize(toL + toO)), 0) ** specular_k * color_light
+   
+    light = 0
+
+    for light in range(len(lights)):
+        color = get_color(obj, M)
+        toL = normalize(lights[light] - M)
+        toO = normalize(O - M)
+        # Shadow: find if the point is shadowed or not.
+        l = [intersect(M + N * .0001, toL, obj_sh) 
+                for k, obj_sh in enumerate(scene) if k != obj_idx]
+        if l and min(l) < np.inf:
+            break
+        # Lambert shading (diffuse).
+        col_ray += obj.get('diffuse_c', diffuse_c) * max(np.dot(N, toL), 0) * color
+        # Blinn-Phong shading (specular).
+        col_ray += obj.get('specular_c', specular_c) * max(np.dot(N, normalize(toL + toO)), 0) ** specular_k * color_lights[light]
     return obj, M, N, col_ray
 
 def add_sphere(position, radius, color):
-    return dict(type='sphere', position=np.array(position),
+    return dict(type='sphere', position=np.array(position), 
         radius=np.array(radius), color=np.array(color), reflection=.5)
-
+    
 def add_plane(position, normal):
-    return dict(type='plane', position=np.array(position),
+    return dict(type='plane', position=np.array(position), 
         normal=np.array(normal),
-        color=lambda M: (color_plane0
+        color=lambda M: (color_plane0 
             if (int(M[0] * 2) % 2) == (int(M[2] * 2) % 2) else color_plane1),
         diffuse_c=.75, specular_c=.5, reflection=.25)
-
+    
 # List of objects.
 color_plane0 = 1. * np.ones(3)
 color_plane1 = 0. * np.ones(3)
@@ -135,9 +138,12 @@ scene = [add_sphere([.75, .1, 1.], .6, [0., 0., 1.]),
          add_plane([0., -.5, 0.], [0., 1., 0.]),
     ]
 
-# Light position and color.
-L = np.array([5., 5., -10.])
-color_light = np.ones(3)
+
+# Light position array. 
+lights = np.array([[5., 4., -5.],[5., 5., 0.],[-20., 8., -25.]])
+
+# Colors array 
+color_lights = np.array([[2.,1.,1.],[1.,2.,3.],[1.,1.,1.]])
 
 # Default light and material parameters.
 ambient = .05
@@ -158,7 +164,7 @@ S = (-1., -1. / r + .25, 1., 1. / r + .25)
 # Loop through all pixels.
 for i, x in enumerate(np.linspace(S[0], S[2], w)):
     if i % 10 == 0:
-        print i / float(w) * 100, "%"
+        print (i / float(w) * 100, "%")
     for j, y in enumerate(np.linspace(S[1], S[3], h)):
         col[:] = 0
         Q[:2] = (x, y)
