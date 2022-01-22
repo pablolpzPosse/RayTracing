@@ -18,7 +18,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-
+from math import dist
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -60,17 +60,60 @@ def intersect_sphere(O, D, S, R):
             return t1 if t0 < 0 else t0
     return np.inf
 
+
+def intersect_triangle(O, D, P, N):
+    # comprobacion intersecciones
+    dist = intersect_plane(0, D, np.array(P[0]), N)
+    
+    if (dist == np.inf):
+        return np.inf
+            
+    a = -np.dot(N,(O-P[0]))
+    b = np.dot(N,D)
+
+    di = a / b
+    I = O + D*di
+
+    # vectores      
+    v0 = np.subtract(P[1],P[0])
+    v1 = np.subtract(P[2],P[0])
+    v2 = I - P[0]
+
+    # producto vectores
+    v00 = np.dot(v0, v0)
+    v01 = np.dot(v0, v1)
+    v11 = np.dot(v1, v1)
+    v20 = np.dot(v2,v0)
+    v21 = np.dot(v2,v1)
+    
+
+    inter = v01 * v01 - v00 * v11 
+
+    prod1 = (v01 * v21 - v11 * v20) / inter
+    prod2 = (v01 * v20 - v00 * v21) / inter
+    
+    # comprobacion triangulo
+    if (prod1 >= 0) and (prod2 >= 0) and (prod1 + prod2 < 1):
+        return dist
+
+    return np.inf
+
+
 def intersect(O, D, obj):
     if obj['type'] == 'plane':
         return intersect_plane(O, D, obj['position'], obj['normal'])
     elif obj['type'] == 'sphere':
         return intersect_sphere(O, D, obj['position'], obj['radius'])
+    elif obj['type'] == 'triangle':
+        return intersect_triangle(O, D, obj['position'], obj['normal'])
 
 def get_normal(obj, M):
     # Find normal.
     if obj['type'] == 'sphere':
         N = normalize(M - obj['position'])
     elif obj['type'] == 'plane':
+        N = obj['normal']
+    elif obj['type'] == 'triangle':
         N = obj['normal']
     return N
     
@@ -100,23 +143,22 @@ def trace_ray(rayO, rayD):
     
     # Start computing the color.
     col_ray = ambient
-   
+    color = get_color(obj, M)
     light = 0
 
-    for light in range(len(lights)):
-        color = get_color(obj, M)
+    for light in range(len(lights)):      
         toL = normalize(lights[light] - M)
         toO = normalize(O - M)
         # Shadow: find if the point is shadowed or not.
         l = [intersect(M + N * .0001, toL, obj_sh) 
                 for k, obj_sh in enumerate(scene) if k != obj_idx]
-        if l and min(l) < np.inf:
-            break
-        # Lambert shading (diffuse).
-        col_ray += obj.get('diffuse_c', diffuse_c) * max(np.dot(N, toL), 0) * color
-        # Blinn-Phong shading (specular).
-        col_ray += obj.get('specular_c', specular_c) * max(np.dot(N, normalize(toL + toO)), 0) ** specular_k * color_lights[light]
+        if l and min(l) >= np.inf:
+            # Lambert shading (diffuse).
+            col_ray += obj.get('diffuse_c', diffuse_c) * max(np.dot(N, toL), 0) * color
+            # Blinn-Phong shading (specular).
+            col_ray += obj.get('specular_c', specular_c) * max(np.dot(N, normalize(toL + toO)), 0) ** specular_k * color_lights[light]
     return obj, M, N, col_ray
+
 
 def add_sphere(position, radius, color):
     return dict(type='sphere', position=np.array(position), 
@@ -128,14 +170,20 @@ def add_plane(position, normal):
         color=lambda M: (color_plane0 
             if (int(M[0] * 2) % 2) == (int(M[2] * 2) % 2) else color_plane1),
         diffuse_c=.75, specular_c=.5, reflection=.25)
+
+def add_triangle(position, color):
+    n1 = np.subtract(position[1],position[0])
+    n2 = np.subtract(position[2],position[0])
+    return dict(type='triangle', position=(position), 
+        color=np.array(color), reflection=.5,normal = (np.cross(n1,n2)))
     
 # List of objects.
 color_plane0 = 1. * np.ones(3)
 color_plane1 = 0. * np.ones(3)
-scene = [add_sphere([.75, .1, 1.], .6, [0., 0., 1.]),
-         add_sphere([-.75, .1, 2.25], .6, [.5, .223, .5]),
-         add_sphere([-2.75, .1, 3.5], .6, [1., .572, .184]),
-         add_plane([0., -.5, 0.], [0., 1., 0.]),
+scene = [
+    add_triangle([[0.,-0.5,3.],[0.5,0.5,3.],[1.,-0.5,3.]],[0.,0.,1.]),
+     add_sphere([-.75, .1, 2.25], .6, [.5, .223, .5]),
+    add_plane([0., -.5, 0.], [0., 1., 0.]),
     ]
 
 
