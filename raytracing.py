@@ -18,10 +18,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from math import dist
+import math
 import numpy as np
 import matplotlib.pyplot as plt
-
+import random
 w = 400
 h = 300
 
@@ -176,16 +176,62 @@ def add_triangle(position, color):
     n2 = np.subtract(position[2],position[0])
     return dict(type='triangle', position=(position), 
         color=np.array(color), reflection=.5,normal = (np.cross(n1,n2)))
+
+
+def calculate_dist(P1,P2):
+    PQ = np.subtract(P1,P2)
+    d = math.sqrt((PQ[0]**2) + (PQ[1]**2) + (PQ[2]**2))
+    return d
+
+def add_concat_triangle(vertices,color):
+
+    out1 = [add_triangle(vertices[0:3], color)]
+    
+    for i in range(3,len(vertices)):
+        a = proces_concat_triangle(vertices[0:i],vertices[i])
+        if i % 2 == 1:
+            aux = [vertices[i],vertices[a[1]],vertices[a[0]]]   
+        else:
+            aux = [vertices[a[0]],vertices[a[1]],vertices[i]]   
+        
+        t = add_triangle(aux, draw_colors[(random.randint(0,5))])
+        out1.append(t)
+    return out1
+    
+
+def proces_concat_triangle(vertices,P2):
+    d1 = [999,7.0]
+    d2 = [999.0,7.0]
+    for i in range(0,len(vertices)):
+        di = calculate_dist(P2,vertices[i])
+        if di < d1[0]:
+            d2[0] = d1[0]
+            d2[1] = d1[1]
+            d1[0] = di
+            d1[1] = float(i)
+        elif di < d2[0]:
+            d2[0] = di
+            d2[1] = float(i)
+    return [int(d1[1]),int(d2[1])]
+             
+
+
     
 # List of objects.
 color_plane0 = 1. * np.ones(3)
 color_plane1 = 0. * np.ones(3)
+
+
+
+draw_colors = [[1.,0.,0.],[1.,1.,0.],[0.,1.,0.],[0.,1.,1.],[0.,0.,1.],[1.,0.,1.]]
+    
+
 scene = [
-    add_triangle([[0.,-0.5,3.],[0.5,0.5,3.],[1.,-0.5,3.]],[0.,0.,1.]),
-     add_sphere([-.75, .1, 2.25], .6, [.5, .223, .5]),
+
     add_plane([0., -.5, 0.], [0., 1., 0.]),
     ]
 
+scene = add_concat_triangle( [[-1.,-0.5,1],[-0.5,0.5,1],[0.,-0.5,1],[0.5,0.5,1],[1.,-0.5,1]],[0.,0.,2.]) + scene
 
 # Light position array. 
 lights = np.array([[5., 4., -5.],[5., 5., 0.],[-20., 8., -25.]])
